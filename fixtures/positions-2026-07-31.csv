@@ -1,0 +1,13 @@
+Account Number,Account Name,Symbol,Description,Quantity,Last Price,Last Price Change,Current Value,Today's Gain/Loss Dollar,Today's Gain/Loss Percent,Total Gain/Loss Dollar,Total Gain/Loss Percent,Percent Of Account,Cost Basis Total,Average Cost Basis,Type
+Z99990001,Individual,SPAXX**,HELD IN MONEY MARKET,,,,$3000.00,,,,,4.54%,,,Cash,
+Z99990001,Individual,KOIFX,FICTIONAL KOI INDEX FUND,115.000,$198.00,+$0.40,"$22,770.00",+$46.00,+0.20%,"+$3,870.00",+20.48%,34.46%,"$18,900.00",$164.35,Cash,
+Z99990001,Individual,CARPX,"FICTIONAL CARP BOND FUND, INVESTOR CLASS",300.250,$30.00,$0.00,"$9,007.50",$0.00,0.00%,+$507.50,+5.97%,13.63%,"$8,500.00",$28.31,Cash,
+Z99990001,Individual,BASS,FICTIONAL BASS HOLDINGS INC,40,$170.00,-$1.00,"$6,800.00",-$40.00,-0.58%,-$200.00,-2.86%,10.29%,"$7,000.00",$175.00,Margin,
+Z99990001,Individual,PIKE,FICTIONAL PIKE SYSTEMS CORP,25,$380.00,+$3.00,"$9,500.00",+$75.00,+0.80%,"+$3,250.00",+52.00%,14.38%,"$6,250.00",$250.00,Cash,
+Z99990001,Individual,REEF,FICTIONAL REEF ETF,60,$85.00,$0.00,"$5,100.00",$0.00,0.00%,--,--,7.72%,--,--,Cash,
+Z99990001,Individual,00FISH123,FICTIONAL MUNI BOND 3.00% 2031,10,$98.00,$0.00,"$9,800.00",$0.00,0.00%,-$200.00,-2.00%,14.83%,"$10,000.00",$100.00,Cash,
+Z99990001,Individual,GIFT,FICTIONAL GIFTED SHARES CO,5,$18.00,$0.00,$90.00,$0.00,0.00%,+$90.00,--,0.14%,$0.00,$0.00,Cash,
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution. FICTIONAL TEST FIXTURE."
+
+"Date downloaded Jul-31-2026 5:15 p.m ET"

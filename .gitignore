@@ -1,0 +1,59 @@
+# Character classes keep these rules working on case-sensitive systems.
+
+# Build output and tool caches
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+*.log
+
+# Editor, OS and local tool state
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Credentials
+.env*
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Private financial data must never enter source control.
+private/
+exports/
+statements/
+*.[cC][sS][vV]
+*.[tT][sS][vV]
+*.[xX][lL][sS]
+*.[xX][lL][sS][xXmM]
+*.[pP][dD][fF]
+*.[oO][fF][xX]
+*.[qQ][fF][xX]
+*.[qQ][iI][fF]
+*.[hH][aA][rR]
+*.sqlite*
+*.db
+*[bB]ackup*.json
+
+# Screenshots and recordings can show private data. The project needs none.
+e2e/screens/
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[wW][eE][bB][pP]
+*.[gG][iI][fF]
+*.[hH][eE][iI][cC]
+*.[mM][pP]4
+*.[wW][eE][bB][mM]
+
+# The fictional fixtures are the only CSVs allowed, by exact name so a real
+# export dropped into fixtures/ stays ignored.
+!fixtures/activity-2026-jan-aug.csv
+!fixtures/activity-2026-jul-oct.csv
+!fixtures/positions-2026-07-31.csv
+!fixtures/positions-2026-10-30.csv
