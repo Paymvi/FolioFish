@@ -121,6 +121,16 @@ details > summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 .stat-label { color: var(--muted); font-size: 12px; font-weight: 600; }
 .stat-value { font: 600 22px/1.3 var(--font-display); overflow-wrap: anywhere; }
 .stat-help, .stat-note { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.value-card { flex-direction: row; flex-wrap: wrap; gap: 12px 32px; }
+.value-main { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.value-main .stat-value { font-size: 28px; }
+.value-math { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.breakdown > div { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: 13px; }
+.breakdown dt { color: var(--muted); min-width: 0; }
+.breakdown dd { font-variant-numeric: tabular-nums; text-align: right; flex: none; }
+.breakdown .sum { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--border); font-weight: 600; }
+.breakdown .sum dt { color: var(--text); }
+[data-density="compact"] .value-main .stat-value { font-size: 22px; }
 [data-density="compact"] .stats { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 [data-density="compact"] .stat { padding: 8px 10px; }
 [data-density="compact"] .stat-value { font-size: 18px; }

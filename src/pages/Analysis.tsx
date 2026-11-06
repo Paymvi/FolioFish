@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { attribution, coverageText, flows, groupSum, holdingHistory, incomeRows, inPeriod, periodKey, portfolio, valuedPositions, type Grain, type HoldingView } from '../domain/calc';
+import { useMemo, useState, type ReactNode } from 'react';
+import { allocation, attribution, coverageText, flows, groupSum, holdingHistory, incomeRows, inPeriod, periodKey, portfolio, valuedPositions, type Grain, type HoldingView } from '../domain/calc';
 import { neg, pct, sum } from '../domain/decimal';
 import { ASSET_LABEL } from '../domain/classify';
 import type { Dec, Txn } from '../domain/types';
@@ -36,18 +36,28 @@ export function Analysis() {
   const [holding, setHolding] = useState('');
 
   const includeCash = prefs.allocationIncludesCash;
-  const views = useMemo(() => (folio?.views ?? []).filter((v) => v.p.currentValue !== null && (includeCash || v.p.kind !== 'cash_core')), [folio, includeCash]);
-  const denom = sum(views.map((v) => v.p.currentValue));
-  const positive = views.filter((v) => Number(v.p.currentValue) > 0).sort((a, b) => Number(b.p.currentValue) - Number(a.p.currentValue));
-  const excludedNegative = views.length - positive.length;
-  const denomText = `Denominator: ${includeCash ? 'total value including cash' : 'securities only, cash excluded'}. Snapshot ${snapshot ? f.date(snapshot.asOf) : ''}.`;
+  const includePending = prefs.includePendingActivity;
+  const alloc = useMemo(() => (folio ? allocation(folio, includeCash) : null), [folio, includeCash]);
+  const positive = useMemo(() => alloc?.positive ?? [], [alloc]);
+  const denom = alloc?.denominator ?? null;
+  const excludedNegative = (alloc?.rows.length ?? 0) - positive.length;
+  const denomText = (
+    <>
+      Denominator: {alloc?.label}. Snapshot {snapshot ? f.date(snapshot.asOf) : ''}.
+      {alloc?.applied && <> Holdings add up to {f.pct(alloc.positiveShare)} of it, because {f.money(alloc.applied, true)} of pending activity is part of the denominator but is not a holding, so it has no bar. {Number(alloc.applied) < 0 && 'A negative adjustment can push positive weights above 100%.'}</>}
+    </>
+  );
+  const pendingRow = alloc?.appliedShare ? [{ label: 'Pending activity (no bar)', value: alloc.appliedShare }] : [];
+  const noDenom = <p className="muted">Unavailable: the denominator is not above zero.</p>;
 
   const byType = useMemo(() => groupSum(positive, (v) => ASSET_LABEL[v.p.assetType], (v) => v.p.currentValue).sort((a, b) => Number(b.total) - Number(a.total)), [positive]);
   const gains = (folio?.views ?? []).filter((v) => v.p.kind !== 'cash_core' && v.gain.value !== null).sort((a, b) => Number(b.gain.value) - Number(a.gain.value));
   const gainPcts = (folio?.views ?? []).filter((v) => v.p.kind !== 'cash_core' && v.gainPct.value !== null).sort((a, b) => Number(b.gainPct.value) - Number(a.gainPct.value));
 
   const complete = useMemo(() => snapshots.filter((s) => s.isComplete), [snapshots]);
-  const series = useMemo(() => complete.map((s) => ({ s, total: portfolio(s).total.value })).filter((x) => x.total !== null), [complete]);
+  const series = useMemo(() => complete.map((s) => ({ s, total: portfolio(s, includePending).total.value })).filter((x) => x.total !== null), [complete, includePending]);
+  const basisName = includePending ? 'Total account value' : 'Value before pending activity';
+  const leftOut = complete.length - series.length;
   const gaps = series.slice(1).map((x, i) => gapDays(series[i].s.asOf, x.s.asOf));
 
   const keys = useMemo(() => [...new Set(snapshots.flatMap((s) => valuedPositions(s).map((p) => p.key)))].sort(), [snapshots]);
@@ -78,7 +88,7 @@ export function Analysis() {
   const [endId, setEndId] = useState('');
   const start = complete.find((s) => s.id === startId) ?? complete[0] ?? null;
   const end = complete.find((s) => s.id === endId) ?? complete[complete.length - 1] ?? null;
-  const attr = useMemo(() => attribution(data, start, end), [data, start, end]);
+  const attr = useMemo(() => attribution(data, start, end, includePending), [data, start, end, includePending]);
 
   const cov = `Recorded for imported period: ${coverageText(coverage)}`;
   const hidden = prefs.hiddenCharts;
@@ -112,16 +122,16 @@ export function Analysis() {
           <h2 className="group">Current portfolio</h2>
           {excludedNegative > 0 && <Banner>{excludedNegative} row(s) with zero or negative value are left out of the allocation charts.</Banner>}
           <div className="grid2">
-            <ChartCard id="alloc-holding" title="Allocation by holding" coverage={denomText} note="Colors stay with each holding across every view. Holdings past the top eight share a neutral color." table={moneyTable('Allocation by holding', positive.map((v) => ({ label: label(v), value: pct(v.p.currentValue, denom) })), 'pct')}>
-              <RankBars name="Share of portfolio" kind="pct" rows={positive.map((v) => ({ label: label(v), value: Number(pct(v.p.currentValue, denom)), color: color(v.p.key) }))} />
+            <ChartCard id="alloc-holding" title="Allocation by holding" coverage={denomText} note="Colors stay with each holding across every view. Holdings past the top eight share a neutral color." table={moneyTable('Allocation by holding', [...positive.map((v) => ({ label: label(v), value: pct(v.p.currentValue, denom) })), ...pendingRow], 'pct')}>
+              {denom === null ? noDenom : <RankBars name="Share of portfolio" kind="pct" rows={positive.map((v) => ({ label: label(v), value: Number(pct(v.p.currentValue, denom)), color: color(v.p.key) }))} />}
             </ChartCard>
-            <ChartCard id="alloc-type" title="Allocation by known asset type" coverage={denomText} note="Types come from the file or stable symbol patterns. “Stock or ETF” is not split further unless the file says which." table={moneyTable('Allocation by asset type', byType.map((t) => ({ label: t.key, value: pct(t.total, denom) })), 'pct')}>
-              <RankBars name="Share of portfolio" kind="pct" rows={byType.map((t) => ({ label: t.key, value: Number(pct(t.total, denom)) }))} />
+            <ChartCard id="alloc-type" title="Allocation by known asset type" coverage={denomText} note="Types come from the file or stable symbol patterns. “Stock or ETF” is not split further unless the file says which." table={moneyTable('Allocation by asset type', [...byType.map((t) => ({ label: t.key, value: pct(t.total, denom) })), ...pendingRow], 'pct')}>
+              {denom === null ? noDenom : <RankBars name="Share of portfolio" kind="pct" rows={byType.map((t) => ({ label: t.key, value: Number(pct(t.total, denom)) }))} />}
             </ChartCard>
             <ChartCard id="values" title="Holding values" coverage={`Reported market value. Snapshot ${snapshot ? f.date(snapshot.asOf) : ''}.`} table={moneyTable('Holding values', positive.map((v) => ({ label: label(v), value: v.p.currentValue })))}>
               <RankBars name="Market value" kind="money" rows={positive.map((v) => ({ label: label(v), value: Number(v.p.currentValue), color: color(v.p.key) }))} />
             </ChartCard>
-            <ChartCard id="weights" title="Portfolio weights" coverage="As reported in the file's Percent of Account column." table={moneyTable('Reported weights', (folio.views ?? []).map((v) => ({ label: label(v), value: v.p.percentOfAccount })), 'pct')}>
+            <ChartCard id="weights" title="Portfolio weights" coverage="As reported in the file's Percent of Account column. Source values: not recalculated, and the pending setting does not change them." table={moneyTable('Reported weights', (folio.views ?? []).map((v) => ({ label: label(v), value: v.p.percentOfAccount })), 'pct')}>
               <RankBars name="Reported weight" kind="pct" rows={folio.views.filter((v) => v.p.percentOfAccount !== null).sort((a, b) => Number(b.p.percentOfAccount) - Number(a.p.percentOfAccount)).map((v) => ({ label: label(v), value: Number(v.p.percentOfAccount), color: color(v.p.key) }))} />
             </ChartCard>
             <ChartCard id="gain-dollar" title="Unrealized gain/loss ($)" coverage={`${gains.length} of ${folio.holdingCount} holdings have a figure.`} note="Above zero is a gain, below is a loss. Signs in the table carry the same information." table={moneyTable('Unrealized gain or loss', gains.map((v) => ({ label: label(v), value: v.gain.value })))}>
@@ -136,11 +146,11 @@ export function Analysis() {
           <div className="grid2">
             <ChartCard
               id="history" title="Portfolio value across snapshots"
-              coverage={`${series.length} observed date${series.length === 1 ? '' : 's'}${gaps.length ? `; longest gap ${Math.max(...gaps)} days` : ''}. Complete snapshots only.`}
-              note="Each dot is a snapshot you imported. The line only links dots; values between them are unknown. A change here includes your own deposits and withdrawals, so it is not a return."
+              coverage={`Basis: ${basisName}, each snapshot with its own pending adjustment. ${series.length} observed date${series.length === 1 ? '' : 's'}${gaps.length ? `; longest gap ${Math.max(...gaps)} days` : ''}. Complete snapshots only.${leftOut ? ` ${leftOut} left out: no value on this basis, for example an unreadable pending row.` : ''}`}
+              note="Each dot is a snapshot you imported. The line only links dots; values between them are unknown. A change here includes your own deposits and withdrawals, so it is not a return. Switching the pending setting recalculates every dot on the new basis, so it never shows up as a gain or loss."
               table={moneyTable('Portfolio value by snapshot', series.map((x) => ({ label: f.date(x.s.asOf), value: x.total })))}
             >
-              {series.length >= 2 ? <ObservedLine name="Total value" points={series.map((x) => ({ asOf: x.s.asOf, value: Number(x.total) }))} /> : <p className="muted">Needs at least two snapshots on different dates. One positions file does not contain price history.</p>}
+              {series.length >= 2 ? <ObservedLine name={basisName} points={series.map((x) => ({ asOf: x.s.asOf, value: Number(x.total) }))} /> : <p className="muted">Needs at least two snapshots on different dates. One positions file does not contain price history.</p>}
             </ChartCard>
             <ChartCard
               id="holding-history" title="A holding across snapshots" coverage={`${hist.length} observed date${hist.length === 1 ? '' : 's'} for this holding.`} note="Only dates you imported appear."
@@ -183,7 +193,7 @@ export function Analysis() {
       )}
 
       <h2 className="group">Balance change</h2>
-      <Card title="What changed between two snapshots" sub="This is arithmetic on recorded values, not an investment return.">
+      <Card title="What changed between two snapshots" sub={`Basis: ${basisName}. This is arithmetic on recorded values, not an investment return.`}>
         {complete.length >= 2 && (
           <div className="filters">
             <label className="inline-field"><span className="muted small">From</span><select value={start?.id ?? ''} onChange={(e) => setStartId(e.target.value)}>{complete.map((s) => <option key={s.id} value={s.id}>{f.date(s.asOf)}</option>)}</select></label>
@@ -196,6 +206,7 @@ export function Analysis() {
             ['Ending value', <MoneyCell v={attr.endValue} />],
             ['Change in balance', <MoneyCell v={attr.change} signed delta />],
             ['Net money you added', <MoneyCell v={attr.netExternal} signed />],
+            ...(Number(attr.pendingChange) !== 0 ? [['Change in pending activity', <MoneyCell v={attr.pendingChange} signed />] as [string, ReactNode]] : []),
             ['Everything else (market change and income, net of fees)', <MoneyCell v={attr.remainder} signed delta />],
           ]} />
         ) : (

@@ -36,11 +36,14 @@ describe('portfolio from the fixture snapshot', () => {
   const p = portfolio(s);
 
   it('adds cash once: SPAXX is in the total, not on top of it', () => {
-    expect(p.total.value).toBe('71619.53');
+    expect(portfolio(s, false).total.value).toBe('71619.53');
     expect(p.cash.value).toBe('4210.55');
     expect(p.securities.value).toBe('67408.98');
   });
-  it('keeps pending out of the total', () => expect(p.pending.value).toBe('-125'));
+  it('applies the signed pending adjustment by default', () => {
+    expect(p.pending.value).toBe('-125');
+    expect(p.total.value).toBe('71494.53');
+  });
   it('counts holdings without cash or pending', () => {
     expect(p.holdingCount).toBe(8);
     expect(p.cashCount).toBe(1);
@@ -214,7 +217,8 @@ describe('balance change attribution', () => {
     const d = apply(d0, entry('a', `${header}08/10/2026,Individual Z99990001,Electronic Funds Transfer Received (Cash),,,0,,1000.00,\n`, { periodStart: '2026-07-01', periodEnd: '2026-10-30' })).next;
     const [a, b] = sortedSnapshots(d);
     const r = attribution(d, a, b);
-    expect(r).toMatchObject({ available: true, change: '5552.03', netExternal: '1000', remainder: '4552.03' });
+    expect(r).toMatchObject({ available: true, change: '5427.03', netExternal: '1000', pendingChange: '-125', remainder: '4552.03' });
+    expect(attribution(d, a, b, false)).toMatchObject({ available: true, change: '5552.03', netExternal: '1000', pendingChange: '0', remainder: '4552.03' });
   });
 
   it('refuses a window containing an unresolved transfer', () => {

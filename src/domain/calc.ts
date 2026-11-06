@@ -19,12 +19,73 @@ const unavailable = (limitation: string): Metric => ({ value: null, source: 'una
 /** Rows that make up the account total. Pending and summary rows are excluded, so nothing counts twice. */
 export const valuedPositions = (s: Snapshot) => s.positions.filter((p) => p.kind === 'security' || p.kind === 'cash_core' || p.kind === 'unknown');
 
+const inBase = (p: Position) => p.currency === BASE_CURRENCY;
+const same = (a: Dec, b: Dec) => a !== null && b !== null && D(a).eq(b);
+
+export type PendingStatus = 'none' | 'reported' | 'unreadable';
+export type TotalCheck = 'none' | 'matches' | 'after-pending' | 'before-pending' | 'rows-adjusted' | 'mismatch';
+
+/** How one snapshot's account value is built. The only place pending activity meets the account total. */
+export interface Valuation {
+  rowsTotal: Dec; // securities + core cash rows as reported
+  beforePending: Dec;
+  net: Dec; // after the adjustment; null when a pending row cannot be read
+  pending: Dec;
+  pendingStatus: PendingStatus;
+  brokerTotal: Dec; // the file's own total row. Evidence only, so it is never an addend
+  totalCheck: TotalCheck;
+}
+
+// An account-wide total, optionally qualified. Subtotals such as "Total Stocks" do not match.
+const ACCOUNT_TOTAL = /^(grand |account )?totals?( (account|portfolio))?( value)?\b[\s:(-]*((incl|excl|before|after|net of|with)\w*\b.*)?$/i;
+const SAYS_INCLUDED = /\b(incl\w*|after|net of|with)\b.*pending/i;
+const SAYS_EXCLUDED = /\b(excl\w*|before|without)\b.*pending/i;
+const rowLabels = (p: Position) => [p.symbolRaw, p.description, Object.values(p.raw)[0]].filter((x): x is string => !!x).map((x) => x.trim());
+
+function accountTotalRow(s: Snapshot) {
+  const totals = s.positions.filter((p) => p.kind === 'summary' && p.currentValue !== null && inBase(p) && rowLabels(p).some((x) => ACCOUNT_TOTAL.test(x)));
+  return totals.filter((p) => rowLabels(p).some((x) => SAYS_INCLUDED.test(x))).pop() ?? totals.pop() ?? null;
+}
+
+/**
+ * Pending is applied exactly once because the value is always built from component rows. A total row
+ * only confirms the result, or shows that the rows themselves already carry the adjustment.
+ */
+export function valuation(s: Snapshot): Valuation {
+  const rowsTotal = sum(valuedPositions(s).filter(inBase).map((p) => p.currentValue));
+  const rows = s.positions.filter((p) => p.kind === 'pending');
+  // One unusable row makes the whole adjustment unknown: summing the rest would look exact and not be.
+  const pendingStatus: PendingStatus = !rows.length ? 'none' : rows.some((p) => p.currentValue === null || !inBase(p)) ? 'unreadable' : 'reported';
+  const pending = pendingStatus === 'reported' ? sum(rows.map((p) => p.currentValue)) : null;
+  const afterRows = rowsTotal === null ? null : sum([rowsTotal, pending]);
+  const totalRow = accountTotalRow(s);
+  const brokerTotal = totalRow?.currentValue ?? null;
+
+  let totalCheck: TotalCheck = 'none';
+  if (totalRow && pendingStatus !== 'unreadable') {
+    const included = rowLabels(totalRow).some((x) => SAYS_INCLUDED.test(x));
+    const excluded = rowLabels(totalRow).some((x) => SAYS_EXCLUDED.test(x));
+    const isRows = same(brokerTotal, rowsTotal), isNet = same(brokerTotal, afterRows);
+    totalCheck = isRows && isNet ? 'matches'
+      : included && isRows ? 'rows-adjusted'
+      : !excluded && isNet ? 'after-pending'
+      : !included && isRows ? 'before-pending'
+      : 'mismatch';
+  }
+  const adjusted = totalCheck === 'rows-adjusted';
+  return {
+    rowsTotal, pending, pendingStatus, brokerTotal, totalCheck,
+    beforePending: adjusted ? sub(rowsTotal, pending) : rowsTotal,
+    net: pendingStatus === 'unreadable' ? null : adjusted ? rowsTotal : afterRows,
+  };
+}
+
 export interface HoldingView {
   p: Position;
   gain: Metric;
   gainPct: Metric;
   avgCost: Metric;
-  weight: Dec; // of total including cash
+  weight: Dec; // of Portfolio.weightBase
 }
 
 export function holdingView(p: Position, total: Dec): HoldingView {
@@ -43,7 +104,9 @@ export function holdingView(p: Position, total: Dec): HoldingView {
 }
 
 export interface Portfolio {
-  total: Metric;
+  total: Metric; // account value on the selected basis
+  valuation: Valuation;
+  weightBase: { value: Dec; label: string }; // denominator for app-derived weights
   securities: Metric;
   cash: Metric;
   pending: Metric;
@@ -58,23 +121,34 @@ export interface Portfolio {
   excludedCurrencies: string[];
 }
 
-export function portfolio(s: Snapshot): Portfolio {
+export function portfolio(s: Snapshot, includePending = true): Portfolio {
   const rows = valuedPositions(s);
-  const base = rows.filter((p) => p.currency === BASE_CURRENCY);
+  const base = rows.filter(inBase);
   const excludedCurrencies = [...new Set(rows.filter((p) => p.currency !== BASE_CURRENCY).map((p) => p.currency))];
   const securities = base.filter((p) => p.kind !== 'cash_core');
   const cash = base.filter((p) => p.kind === 'cash_core');
   const asOf = `Snapshot ${s.asOf}`;
   const noValue = base.filter((p) => p.currentValue === null).length;
-  const totalValue = sum(base.map((p) => p.currentValue));
-  const views = rows.map((p) => holdingView(p, p.currency === BASE_CURRENCY ? totalValue : null));
+  const v = valuation(s);
+  const totalValue = includePending ? v.net : v.beforePending;
+  const unreadable = v.pendingStatus === 'unreadable';
+  const fallback = includePending && unreadable;
+  const baseValue = fallback ? v.beforePending : totalValue;
+  const weightBase = {
+    value: isPos(baseValue) ? baseValue : null,
+    label: !isPos(baseValue) ? 'unavailable, because the selected value is not above zero'
+      : fallback ? 'value before pending activity, because the pending amount could not be read'
+      : includePending ? (v.pendingStatus === 'reported' ? 'total account value, after pending activity' : 'total account value')
+      : 'value before pending activity',
+  };
+  const views = rows.map((p) => holdingView(p, inBase(p) ? weightBase.value : null));
 
   const of = (n: number, m: number) => `${n} of ${m} holdings`;
   const valueLimit = [
     noValue ? `${noValue} row(s) have no reported value` : '',
     excludedCurrencies.length ? `Excludes ${excludedCurrencies.join(', ')} rows: currencies are never combined` : '',
+    v.totalCheck === 'mismatch' ? 'Built from the rows, because the file’s total row does not match them' : '',
   ].filter(Boolean).join('. ') || undefined;
-  const pendingRows = s.positions.filter((p) => p.kind === 'pending');
 
   const costRows = securities.filter((p) => p.costBasis !== null);
   const gainViews = views.filter((v) => v.p.currency === BASE_CURRENCY && v.p.kind !== 'cash_core' && v.gain.value !== null);
@@ -88,10 +162,12 @@ export function portfolio(s: Snapshot): Portfolio {
     value === null ? unavailable(none) : { value, source, coverage, limitation };
 
   return {
-    total: metric(totalValue, asOf, valueLimit, 'No values in this snapshot'),
+    total: metric(totalValue, asOf, valueLimit, fallback ? 'A pending row exists but its amount could not be read, so an exact total is unavailable' : 'No values in this snapshot'),
+    valuation: v,
+    weightBase,
     securities: metric(sum(securities.map((p) => p.currentValue)), asOf, undefined, 'No securities in this snapshot'),
     cash: metric(sum(cash.map((p) => p.currentValue)), asOf, undefined, 'No cash or core row in this snapshot'),
-    pending: metric(sum(pendingRows.map((p) => p.currentValue)), asOf, undefined, 'No pending activity row', 'reported'),
+    pending: metric(v.pending, asOf, undefined, unreadable ? 'A pending row exists but its amount could not be read' : 'No pending adjustment reported', 'reported'),
     costBasis: metric(sum(costRows.map((p) => p.costBasis)), of(costRows.length, securities.length), costRows.length < securities.length ? 'Some holdings have no cost basis, so this is a partial sum' : undefined, 'No cost basis in this file'),
     unrealized: metric(sum(gainViews.map((v) => v.gain.value)), of(gainViews.length, securities.length), gainViews.length < securities.length ? 'Some holdings have no gain figure, so this is a partial sum' : undefined, 'No gain/loss in this file'),
     unrealizedPct: pctRows.length
@@ -105,6 +181,22 @@ export function portfolio(s: Snapshot): Portfolio {
     cashCount: cash.length,
     views,
     excludedCurrencies,
+  };
+}
+
+/** Weights for the allocation views, and how they reconcile to the denominator. */
+export function allocation(p: Portfolio, includeCash: boolean) {
+  const rows = p.views.filter((v) => inBase(v.p) && v.p.currentValue !== null && (includeCash || v.p.kind !== 'cash_core'));
+  const positive = rows.filter((v) => isPos(v.p.currentValue)).sort((a, b) => Number(b.p.currentValue) - Number(a.p.currentValue));
+  // Pending belongs to the account, not to securities, so a securities-only denominator ignores it.
+  const denominator = includeCash ? p.weightBase.value : isPos(p.securities.value) ? p.securities.value : null;
+  const diff = includeCash ? sub(p.weightBase.value, p.valuation.rowsTotal) : null;
+  const applied = diff !== null && !D(diff).isZero() ? diff : null; // the part of the denominator that is not a holding
+  return {
+    rows, positive, denominator, applied,
+    label: includeCash ? p.weightBase.label : 'securities only, cash and pending activity excluded',
+    positiveShare: pct(sum(positive.map((v) => v.p.currentValue)), denominator),
+    appliedShare: pct(applied, denominator),
   };
 }
 
@@ -239,16 +331,16 @@ export function groupSum<T>(items: T[], key: (x: T) => string, amount: (x: T) =>
 }
 
 export type Attribution =
-  | { available: true; startValue: string; endValue: string; change: string; netExternal: string; remainder: string; start: string; end: string }
+  | { available: true; startValue: string; endValue: string; change: string; netExternal: string; pendingChange: string; remainder: string; start: string; end: string }
   | { available: false; missing: string[] };
 
 /** Splits a balance change into external cash flow and everything else, only when every input is present. */
-export function attribution(data: AppData, startSnap: Snapshot | null, endSnap: Snapshot | null): Attribution {
+export function attribution(data: AppData, startSnap: Snapshot | null, endSnap: Snapshot | null, includePending = true): Attribution {
   const missing: string[] = [];
   if (!startSnap || !endSnap || startSnap.asOf >= endSnap.asOf) return { available: false, missing: ['Two snapshots on different dates'] };
   if (!startSnap.isComplete || !endSnap.isComplete) missing.push('Both snapshots must be complete, not partial');
-  const a = portfolio(startSnap), b = portfolio(endSnap);
-  if (a.total.value === null || b.total.value === null) missing.push('A total value in both snapshots');
+  const a = portfolio(startSnap, includePending), b = portfolio(endSnap, includePending);
+  if (a.total.value === null || b.total.value === null) missing.push(includePending && [a, b].some((p) => p.valuation.pendingStatus === 'unreadable') ? 'A readable pending amount in both snapshots' : 'A total value in both snapshots');
   if (a.excludedCurrencies.length || b.excludedCurrencies.length) missing.push('A single currency in both snapshots');
   const ranges = activityCoverage(data);
   const windowStart = nextDay(startSnap.asOf);
@@ -260,5 +352,7 @@ export function attribution(data: AppData, startSnap: Snapshot | null, endSnap: 
   if (missing.length) return { available: false, missing };
   const net = flows(window, ranges, windowStart, endSnap.asOf).netExternal.value ?? '0';
   const change = sub(b.total.value, a.total.value)!;
-  return { available: true, startValue: a.total.value!, endValue: b.total.value!, change, netExternal: net, remainder: sub(change, net)!, start: startSnap.asOf, end: endSnap.asOf };
+  // Settled activity never contains pending adjustments, so they get their own line and "everything else" is the same on either basis.
+  const pendingChange = sub(sub(b.total.value, b.valuation.beforePending), sub(a.total.value, a.valuation.beforePending))!;
+  return { available: true, startValue: a.total.value!, endValue: b.total.value!, change, netExternal: net, pendingChange, remainder: sub(sub(change, net), pendingChange)!, start: startSnap.asOf, end: endSnap.asOf };
 }

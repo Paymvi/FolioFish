@@ -4,11 +4,14 @@ const CORE_SYMBOLS = new Set(['SPAXX', 'FDRXX', 'FZFXX', 'SPRXX', 'FCASH', 'FZDX
 
 export const cleanSymbol = (s: string) => s.trim().replace(/\*+$/, '').trim();
 
+export const SUMMARY_LABEL = /^(PENDING\b.*\b|(GRAND |ACCOUNT )?)TOTALS?\b/i;
+
 export function classifyPosition(symbolRaw: string, description: string, hasNumbers: boolean): PositionKind {
   const sym = symbolRaw.trim().toUpperCase();
   const desc = description.trim().toUpperCase();
+  // Summary first: "Pending Activity Total" restates pending rows and must not be counted as another one.
+  if (SUMMARY_LABEL.test(sym) || SUMMARY_LABEL.test(desc)) return 'summary';
   if (/^PENDING/.test(sym) || /^PENDING ACTIVITY/.test(desc)) return 'pending';
-  if (/^(GRAND |ACCOUNT )?TOTALS?\b/.test(sym) || /^(GRAND |ACCOUNT )?TOTALS?\b/.test(desc)) return 'summary';
   if (sym.endsWith('**') || /^HELD IN\b/.test(desc) || CORE_SYMBOLS.has(cleanSymbol(sym))) return 'cash_core';
   if (sym || desc) return 'security';
   return hasNumbers ? 'unknown' : 'summary';

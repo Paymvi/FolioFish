@@ -57,3 +57,4 @@ e2e/screens/
 !fixtures/activity-2026-jul-oct.csv
 !fixtures/positions-2026-07-31.csv
 !fixtures/positions-2026-10-30.csv
+!fixtures/positions-pending-acceptance.csv

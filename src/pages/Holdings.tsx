@@ -65,7 +65,8 @@ export function Holdings() {
         <h1>Holdings</h1>
         <Seg label="View" value={prefs.holdingsView} onChange={(v) => setPref('holdingsView', v)} options={[{ value: 'table', label: 'Table' }, { value: 'cards', label: 'Cards' }]} />
       </div>
-      {l.explained && <p className="muted">Weights use total value including cash as the denominator. <sup className="calc">c</sup> marks a figure FolioFish calculated; everything else is as reported in the file. Options, bonds and unknown instruments show only reported values.</p>}
+      <p className="muted small">Weights are a share of {folio.weightBase.label}. Reported % of account stays as imported.</p>
+      {l.explained && <p className="muted"><sup className="calc">c</sup> marks a figure FolioFish calculated; everything else is as reported in the file. Options, bonds and unknown instruments show only reported values.</p>}
       <div className="filters">
         <input type="search" placeholder="Search symbol or name" aria-label="Search holdings" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Filter by type" value={type} onChange={(e) => setType(e.target.value)}>

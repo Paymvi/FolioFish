@@ -59,10 +59,12 @@ export function useFmt() {
 
 /** Explained and compact wording for the same figure. */
 const LABELS: Record<string, [string, string, string?]> = {
-  total: ['Total account value', 'Acct value', 'Everything in this snapshot, including cash. Taken from the file; it does not update until you import again.'],
+  // Same wording in both modes: these two labels are what tell the valuation bases apart.
+  total: ['Total account value', 'Total account value', 'Securities, core cash and this snapshot’s pending adjustment. It does not update until you import again.'],
+  beforePending: ['Value before pending activity', 'Value before pending activity', 'Securities and core cash only. This can overstate the account when a debit is pending.'],
   securities: ['Invested in securities', 'Securities', 'Value of everything except cash and core positions.'],
   cash: ['Cash and core position', 'Cash/core', 'Money-market or core cash rows such as SPAXX. Counted once, as part of the total.'],
-  pending: ['Pending activity', 'Pending', 'Fidelity lists this separately. FolioFish does not add it to the total.'],
+  pending: ['Pending activity', 'Pending'],
   costBasis: ['What you paid (cost basis)', 'Cost basis', 'Total cost reported by Fidelity, excluding cash.'],
   unrealized: ['Unrealized gain/loss', 'Unreal. G/L', 'Paper gain or loss on what you still own. Nothing here has been sold.'],
   unrealizedPct: ['Unrealized gain/loss %', 'Unreal. %', 'Total gain divided by total cost, not an average of the holdings’ percentages.'],

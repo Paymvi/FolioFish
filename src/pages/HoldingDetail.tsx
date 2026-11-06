@@ -55,7 +55,7 @@ export function HoldingDetail({ holdingKey }: { holdingKey: string }) {
             ["Today's %", <PctCell v={v.p.todayGainPct} signed delta why="Not in the file" />],
             ['Total gain/loss', <MetricMoney m={v.gain} signed delta />],
             ['Total %', <MetricPct m={v.gainPct} signed delta />],
-            ['% of portfolio (incl. cash)', <PctCell v={v.weight} />],
+            [`% of ${folio!.weightBase.label}`, <PctCell v={v.weight} why={folio!.weightBase.label} />],
             ['Reported % of account', <PctCell v={v.p.percentOfAccount} why="Not in the file" />],
             ['Account', f.account(snapshot!.accountId)],
           ]} />

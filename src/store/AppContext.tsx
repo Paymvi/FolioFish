@@ -61,7 +61,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const snapshots = useMemo(() => sortedSnapshots(data), [data]);
   const latest = useMemo(() => latestSnapshot(data), [data]);
   const snapshot = snapshots.find((s) => s.id === selectedId) ?? latest;
-  const folio = useMemo(() => (snapshot ? portfolio(snapshot) : null), [snapshot]);
+  const folio = useMemo(() => (snapshot ? portfolio(snapshot, prefs.includePendingActivity) : null), [snapshot, prefs.includePendingActivity]);
   const coverage = useMemo(() => activityCoverage(data), [data]);
 
   const setPref = useCallback(<K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => ({ ...p, [k]: v })), []);

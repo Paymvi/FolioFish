@@ -91,6 +91,7 @@ export function DataSettings() {
             <label className="field"><span>Labels</span>
               <Seg label="Labels" value={prefs.mode} onChange={(v) => setPref('mode', v)} options={[{ value: 'explained', label: 'Explained' }, { value: 'compact', label: 'Compact' }]} />
             </label>
+            <Check checked={prefs.includePendingActivity} onChange={(v) => setPref('includePendingActivity', v)}>Include pending activity in account value</Check>
             <Check checked={prefs.hideDollars} onChange={(v) => setPref('hideDollars', v)}>Hide dollar amounts</Check>
             <Check checked={showAccount} onChange={setShowAccount}>Show full account numbers until this page is closed</Check>
             <button type="button" className="btn" onClick={resetPrefs}>Reset all preferences</button>

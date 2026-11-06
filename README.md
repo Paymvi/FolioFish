@@ -91,19 +91,37 @@ Every figure is either **reported** (from the file) or **calculated** (marked wi
 
 | Figure | Definition |
 |---|---|
-| Total account value | Sum of reported values of securities and cash/core rows in one snapshot. Pending activity and total rows are excluded |
+| Total account value | Include pending activity ON (the default): securities + cash/core + the snapshot's signed pending adjustment |
+| Value before pending activity | Include pending activity OFF: securities + cash/core only. The adjustment stays visible beside it |
 | Cash/core | Rows marked `**`, described "HELD IN…", or known core symbols such as SPAXX. Counted once, as part of the total |
 | Cost basis | Sum of reported cost, excluding cash. Coverage is shown when some holdings have none |
 | Unrealized gain/loss | Reported per holding; if absent, value minus cost for stocks and funds only |
 | Overall unrealized % | Sum of gains ÷ sum of cost, over holdings with both and cost above zero. Never an average of percentages |
 | Today's gain/loss | Sum of reported values for the file's date. % = gain ÷ (value − gain). Funds price once a day, and this is whatever the file says |
 | Average cost | Reported; if absent, cost ÷ shares for stocks and funds only |
-| % of portfolio | Value ÷ total including cash. Analysis can exclude cash, and the denominator is always stated |
+| % of portfolio | Value ÷ the selected account value. Analysis can exclude cash, and the denominator is always stated. Fidelity's own Percent of Account stays as imported |
 | Income | Dividends, interest and capital gain distributions, plus reinvestments with no matching income row |
 | Reinvested dividends | Income once, plus a purchase. Never a contribution, and paired cash and reinvestment rows are not double-counted |
 | Deposits, withdrawals | External cash only. Purchases and sales are excluded |
 | Fees | Fee rows plus Commission and Fees columns on other rows |
 | Sale proceeds | Cash received. Not profit |
+
+### Pending activity and the two valuation modes
+
+Fidelity lists pending activity as a separate signed row in a positions file. The **Include pending activity** toggle beside the main value card (also in Data & Settings) chooses how that row is treated. For a snapshot of $2,400.00 securities, $600.00 core cash and −$250.00 pending:
+
+| Toggle | Label | Calculation | Shows |
+|---|---|---|---|
+| ON (default) | Total account value | 2,400 + 600 − 250 | $2,750.00 |
+| OFF | Value before pending activity | 2,400 + 600 | $3,000.00 |
+
+These are imported snapshot values, not live balances. Securities, core cash, cost basis, gains, holding counts, dividends and transactions are the same in both modes. Core cash is the reported balance; FolioFish does not derive "available to trade" or "available to withdraw", because those need information the file does not contain. The preference lives with your other local preferences and never changes imported records.
+
+- **Applied once.** The value is always built from component rows. A broker total row is never added to. It only confirms the result, and the card says whether it matched. If a total row labeled as including pending equals the rows themselves, the rows already carry the adjustment and it is not added again. If a total row cannot be reconciled, a warning says so and the figure comes from the rows. Subtotals such as "Total Stocks" are ignored.
+- **One snapshot only.** Only pending rows in the selected positions snapshot count. Pending rows in activity history are never added, and adjustments from different dates are never combined.
+- **Missing or unreadable.** "None reported" means the snapshot has no pending row. If a row exists but its amount cannot be read (or is in another currency), FolioFish never assumes zero: Total account value shows as unavailable with a warning, and Value before pending activity remains available.
+- **Allocation.** Weights use the selected value as their denominator, and each view names it. With a negative adjustment included, positive holdings add up to more than 100%: the example above gives 109.09%, and the −9.09% pending row in the data table brings it back to 100%. Pending activity is not a holding, so it gets no bar. A securities-only denominator ignores it. Fidelity's Percent of Account figures are shown unchanged.
+- **History.** Every snapshot is recalculated on the selected basis using its own adjustment, so changing the setting is never a gain or loss. A snapshot with an unreadable pending row drops out of the ON view and is counted in the chart's note. **Balance change** shows pending as its own line, so "everything else" is identical in both modes.
 
 Activity totals are labeled "recorded" with their coverage, because anything outside the imported dates is unknown.
 

@@ -20,6 +20,7 @@ Key decisions:
 - **Provenance by `importIds`.** Snapshots and transactions list every import supporting them. A record is deleted only when the last supporter is removed.
 - **Transaction identity** is a fingerprint plus an occurrence number, so legitimate identical rows stay distinct. Stored count versus file count decides duplicate, new or ambiguous.
 - **Snapshots are never merged.** Views use exactly one. A partial snapshot only becomes current if nothing complete exists, and it is then labeled.
+- **One valuation path.** `valuation()` in `calc.ts` is the only code that combines pending activity with the account total, and `portfolio(snapshot, includePending)` feeds every display. It derives from stored rows at read time, so the toggle needs no schema change, migration or new backup version.
 - **Demo data lives in memory only**, built by running fictional fixtures through the real importer.
 - **Price updates later:** a future price source would produce a `Snapshot`-like record through the same model. Nothing for that is implemented now.
 
@@ -36,12 +37,12 @@ Results from the final run on 2026-11-05. All data was fictional.
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Clean |
-| `npm test` | 120 tests pass |
+| `npm test` | 163 tests pass |
 | `npm run build` | Succeeds. One size warning for the 800 KB JS bundle, harmless for a local app |
-| `npm run test:e2e` | 67 checks pass in installed Chrome against the production build |
+| `npm run test:e2e` | 110 checks pass in installed Chrome against the production build |
 | `npm audit` (runtime dependencies) | 0 vulnerabilities |
 
-The browser run covers: empty state, import preview, valid import, repeated import, overlapping activity, malformed file, reload persistence, theme, explanation and visibility preferences, sorting, columns, cards, holding details, charts, backup, rejected backup, reset, restore and re-import after restore, removal impact, privacy toggle, account masking, 375px layouts, demo separation and keyboard skip link.
+The browser run covers: empty state, import preview, valid import, repeated import, overlapping activity, malformed file, reload persistence, theme, explanation and visibility preferences, sorting, columns, cards, holding details, charts, backup, rejected backup, reset, restore and re-import after restore, removal impact, privacy toggle, account masking, 375px layouts, demo separation, keyboard skip link, and the pending activity toggle (both themes, both explanation modes, 375px, keyboard, reload, unreadable rows, unchanged stored records).
 
 **Network:** every request during that run was recorded, and all stayed on `http://127.0.0.1:5317`. The production build's CSP also blocks third-party connections. The bundle's only remote URL strings are library error-message links and SVG/XML namespaces, none of which are fetched. No financial data appeared in the console.
 
@@ -56,6 +57,8 @@ Problems the verification found, now fixed and covered by tests:
 - **No real Fidelity export has been tested.** Formats come from third-party descriptions and fictional fixtures. Treat the first real import as the true test, and expect that an action wording may land in "Unknown" until a rule is added in `src/domain/classify.ts`.
 - **Fidelity instructions in the README are general guidance**; Fidelity's own help pages could not be confirmed.
 - **Single account only.** Files for another account are blocked, with no way to add a second account in v1.
+- **Pending positions rows are trusted as signed adjustments.** Without a total row, FolioFish cannot tell whether a core cash balance already reflects a pending item. A plain total equal to the rows is read as excluding pending; only a total labeled as including it stops the adjustment. Check the first real export against Fidelity's displayed balance.
+- **A bare pending row with no amount was skipped before this feature.** Snapshots imported earlier show "None reported" for that one shape until the file is imported again.
 - **Pending transactions do not reconcile.** When a pending row later settles, it appears as a new row and the pending row stays until its import is removed. Pending rows are out of totals, so no amounts double, but balance change stays unavailable while any undated pending row exists.
 - **Activity coverage** defaults to the first and last dated rows, so a quiet end of a period can look uncovered. Adjust it during review.
 - **Same-day snapshots with different holdings** are ordered by import time, since the file's time text is not parsed.

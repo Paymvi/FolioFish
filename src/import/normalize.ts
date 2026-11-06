@@ -1,5 +1,5 @@
 import { parseDec } from '../domain/decimal';
-import { classifyAction, classifyAsset, classifyPosition, cleanSymbol, hasShareSemantics } from '../domain/classify';
+import { classifyAction, classifyAsset, classifyPosition, cleanSymbol, hasShareSemantics, SUMMARY_LABEL } from '../domain/classify';
 import type { Dec, Position, RawRow, Txn } from '../domain/types';
 import { headerNames, parseDate, type ParsedFile } from './parse';
 
@@ -58,6 +58,8 @@ function rawOf(c: Ctx, row: string[]): RawRow {
 function nonDataReason(c: Ctx, row: string[], valueField: string): string | null {
   const filled = row.filter((v) => v.trim());
   if (parseDec(cell(c, row, valueField)).value !== null) return null;
+  // A bare pending row with no amount must survive, or it would read as "no pending activity reported".
+  if (valueField === 'currentValue' && /^pending( activity)?:?$/i.test(filled[0] ?? '')) return null;
   if (FOOTER.test(filled[0] ?? '')) return 'Disclaimer or footer text';
   if (filled.length === 1) return filled[0].length > 24 ? 'Text note, not a data row' : 'Incomplete row with a single value';
   return null;
@@ -97,7 +99,7 @@ export function normalizePositions(p: ParsedFile, headerRow: number, map: Record
     const first = (row[0] ?? '').trim();
     const symbolRaw = cell(c, row, 'symbol');
     const description = cell(c, row, 'description');
-    const kind = /^pending/i.test(first) ? 'pending' : /^(grand |account )?totals?\b/i.test(first) ? 'summary'
+    const kind = SUMMARY_LABEL.test(first) ? 'summary' : /^pending/i.test(first) ? 'pending'
       : classifyPosition(symbolRaw, description, row.some((v) => parseDec(v).value !== null));
     const symbol = kind === 'pending' || kind === 'summary' ? null : cleanSymbol(symbolRaw) || null;
     const asset = classifyAsset(symbol, description, kind, cell(c, row, 'investmentType'));

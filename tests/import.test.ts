@@ -93,7 +93,7 @@ describe('positions import', () => {
     expect(r.next.snapshots[0].importIds).toHaveLength(2);
     expect(r.plans[0].counts.valid).toBe(0);
     expect(r.plans[0].counts.duplicate).toBeGreaterThan(0);
-    expect(portfolio(latestSnapshot(r.next)!).total.value).toBe('71619.53');
+    expect(portfolio(latestSnapshot(r.next)!).total.value).toBe('71494.53');
   });
 
   it('keeps distinct snapshots and views only the latest one', () => {
@@ -179,7 +179,8 @@ describe('positions import', () => {
     const r = apply(emptyData(), entry('t', text));
     const s = r.next.snapshots[0];
     expect(s.positions.map((p) => p.kind)).toEqual(['cash_core', 'security', 'summary', 'pending']);
-    expect(portfolio(s).total.value).toBe('200');
+    expect(portfolio(s, false).total.value).toBe('200');
+    expect(portfolio(s).total.value).toBe('195');
     expect(portfolio(s).pending.value).toBe('-5');
   });
 });

@@ -1,0 +1,9 @@
+Account Number,Account Name,Symbol,Description,Quantity,Last Price,Current Value,Percent Of Account,Cost Basis Total,Total Gain/Loss Dollar
+Z99990001,Individual,SPAXX**,HELD IN MONEY MARKET,,,$600.00,21.82%,,
+Z99990001,Individual,KOIFX,FICTIONAL KOI INDEX FUND,10,$150.00,"$1,500.00",54.55%,"$1,200.00",+$300.00
+Z99990001,Individual,BASS,FICTIONAL BASS HOLDINGS INC,6,$150.00,$900.00,32.73%,"$1,000.00",-$100.00
+Z99990001,Individual,Pending Activity,,,,-$250.00,,,
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution. FICTIONAL TEST FIXTURE."
+
+"Date downloaded Nov-02-2026 4:05 p.m ET"

@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
-import { coverageText, flows, type HoldingView } from '../domain/calc';
+import { coverageText, flows, type HoldingView, type Portfolio } from '../domain/calc';
+import { neg } from '../domain/decimal';
 import { useApp } from '../store/AppContext';
 import { Banner, Card, Check, Delta, MoneyCell, PctCell, Stat } from '../ui/components';
 import { Swatch, useHoldingColors } from '../ui/charts';
@@ -25,6 +26,56 @@ function Ranked({ title, rows, value }: { title: string; rows: HoldingView[]; va
         </ol>
       )}
     </div>
+  );
+}
+
+const CHECK_NOTE: Partial<Record<Portfolio['valuation']['totalCheck'], string>> = {
+  matches: 'Matches the file’s total row.',
+  'after-pending': 'Matches the file’s total row, which already includes pending activity, so it is counted once.',
+  'before-pending': 'The file’s total row equals the rows before pending activity, so the adjustment is applied once on top of them.',
+  'rows-adjusted': 'The file’s total row includes pending activity and the rows already add up to it, so it is not added again.',
+};
+
+/** The account value, the basis toggle, and the arithmetic behind the number on screen. */
+function ValueCard({ folio, asOf }: { folio: Portfolio; asOf: string }) {
+  const { prefs, setPref } = useApp();
+  const f = useFmt();
+  const l = useLabel();
+  const on = prefs.includePendingActivity;
+  const v = folio.valuation;
+  const name = l.label(on ? 'total' : 'beforePending');
+  const before = l.label('beforePending');
+  const adjusted = v.totalCheck === 'rows-adjusted';
+  const pendingValue = v.pendingStatus === 'none' ? 'None reported'
+    : v.pendingStatus === 'unreadable' ? 'Could not be read'
+    : <MoneyCell v={v.pending} signed />;
+  const line = (k: string, value: ReactNode, cls?: string) => <div key={k} className={cls}><dt>{k}</dt><dd>{value}</dd></div>;
+  const pendingLabel = l.label('pending');
+  const sumLine = line(`= ${name}`, folio.total.value === null ? 'Unavailable' : <MoneyCell v={folio.total.value} />, 'sum');
+
+  return (
+    <section className="card value-card" aria-label="Account value">
+      <div className="value-main">
+        <div className="stats flat" aria-live="polite"><Stat k={on ? 'total' : 'beforePending'} m={folio.total} /></div>
+        <Check checked={on} onChange={(x) => setPref('includePendingActivity', x)}>Include pending activity</Check>
+      </div>
+      <div className="value-math">
+        <dl className="breakdown">
+          {line(l.label('securities'), <MoneyCell v={folio.securities.value} why={folio.securities.limitation} />)}
+          {line(l.label('cash'), <MoneyCell v={folio.cash.value} why={folio.cash.limitation} />)}
+          {adjusted && !on && line(`${pendingLabel} removed from the rows`, <MoneyCell v={neg(v.pending)} signed />)}
+          {on && !adjusted && line(pendingLabel, pendingValue)}
+          {sumLine}
+          {on && v.pendingStatus === 'unreadable' && line(before, <MoneyCell v={v.beforePending} />)}
+          {on && adjusted && line(`${pendingLabel}, already in the rows above`, pendingValue)}
+          {!on && !adjusted && line(`${pendingLabel} (not included)`, pendingValue)}
+        </dl>
+        <p className="muted small">Imported snapshot values from {f.date(asOf)}, not live balances.</p>
+        {v.pendingStatus === 'unreadable' && <Banner tone="warn">A pending activity row exists in this snapshot, but its amount could not be read. FolioFish does not assume zero, so an exact net value is unavailable.</Banner>}
+        {v.totalCheck === 'mismatch' && <Banner tone="warn">The file’s total row (<MoneyCell v={v.brokerTotal} />) does not match its rows, so FolioFish cannot confirm whether it includes pending activity. The figure here comes from the rows.</Banner>}
+        {CHECK_NOTE[v.totalCheck] && <p className="muted small">{CHECK_NOTE[v.totalCheck]}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -60,13 +111,12 @@ export function Overview() {
 
       {!folio && <Banner>No positions snapshot yet, so holdings figures are unavailable. Import a positions CSV to add them.</Banner>}
 
+      {folio && show('value') && <ValueCard folio={folio} asOf={snapshot!.asOf} />}
       {folio && show('value') && (
         <div className="stats">
-          <Stat k="total" m={folio.total} />
           <Stat k="securities" m={folio.securities} />
           <Stat k="cash" m={folio.cash} />
           <Stat k="costBasis" m={folio.costBasis} />
-          {folio.pending.value !== null && <Stat k="pending" m={folio.pending} signed />}
           <div className="stat">
             <div className="stat-label">{l.label('holdings')}</div>
             <div className="stat-value">{folio.holdingCount}</div>
@@ -86,7 +136,7 @@ export function Overview() {
       )}
 
       {folio && show('largest') && (
-        <Card title="Largest holdings" sub={`Share of total value including cash, from the ${f.date(snapshot!.asOf)} snapshot`}>
+        <Card title="Largest holdings" sub={`Share of ${folio.weightBase.label}, from the ${f.date(snapshot!.asOf)} snapshot`}>
           <ol className="rank wide">
             {largest.map((v, i) => (
               <li key={i}>

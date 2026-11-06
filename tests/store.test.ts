@@ -71,7 +71,7 @@ describe('backup', () => {
     await replaceAll(r.backup.data);
     const after = await loadData();
     expect(after.transactions).toHaveLength(d.transactions.length);
-    expect(portfolio(latestSnapshot(after)!).total.value).toBe('71619.53');
+    expect(portfolio(latestSnapshot(after)!).total.value).toBe('71494.53');
     expect(r.backup.preferences).toEqual({ theme: 'dark' });
     // Restoring and then re-importing the same file still deduplicates.
     expect(apply(after, entryOf('activity-2026-jan-aug.csv')).next.transactions).toHaveLength(d.transactions.length);
