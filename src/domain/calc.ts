@@ -14,13 +14,15 @@ export function latestSnapshot(data: Pick<AppData, 'snapshots'>): Snapshot | nul
   return all.filter((s) => s.isComplete).pop() ?? all.pop() ?? null;
 }
 
-const unavailable = (limitation: string): Metric => ({ value: null, source: 'unavailable', limitation });
+export const unavailable = (limitation: string): Metric => ({ value: null, source: 'unavailable', limitation });
 
 /** Rows that make up the account total. Pending and summary rows are excluded, so nothing counts twice. */
 export const valuedPositions = (s: Snapshot) => s.positions.filter((p) => p.kind === 'security' || p.kind === 'cash_core' || p.kind === 'unknown');
 
 const inBase = (p: Position) => p.currency === BASE_CURRENCY;
 const same = (a: Dec, b: Dec) => a !== null && b !== null && D(a).eq(b);
+/** The one value every row agrees on, or null: differing or missing figures are never averaged. */
+export const shared = (values: Dec[]) => (values.every((v) => same(v, values[0])) ? values[0] : null);
 
 export type PendingStatus = 'none' | 'reported' | 'unreadable';
 export type TotalCheck = 'none' | 'matches' | 'after-pending' | 'before-pending' | 'rows-adjusted' | 'mismatch';
@@ -205,7 +207,7 @@ export function holdingHistory(snapshots: Snapshot[], key: string) {
   return snapshots.flatMap((s) => {
     const rows = s.positions.filter((p) => p.key === key);
     if (!rows.length) return [];
-    return [{ snapshotId: s.id, asOf: s.asOf, isComplete: s.isComplete, value: sum(rows.map((p) => p.currentValue)), quantity: sum(rows.map((p) => p.quantity)), costBasis: sum(rows.map((p) => p.costBasis)) }];
+    return [{ snapshotId: s.id, asOf: s.asOf, isComplete: s.isComplete, value: sum(rows.map((p) => p.currentValue)), price: shared(rows.map((p) => p.lastPrice)), quantity: sum(rows.map((p) => p.quantity)), costBasis: sum(rows.map((p) => p.costBasis)) }];
   });
 }
 

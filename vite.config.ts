@@ -23,5 +23,5 @@ export default defineConfig({
   ],
   server: { host: HOST, port: PORT, strictPort: true },
   preview: { host: HOST, port: PORT, strictPort: true },
-  test: { include: ['tests/**/*.test.ts'], environment: 'node', setupFiles: ['tests/setup.ts'] },
+  test: { include: ['tests/**/*.test.{ts,tsx}'], environment: 'node', setupFiles: ['tests/setup.ts'] },
 });

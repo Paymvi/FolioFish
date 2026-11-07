@@ -29,11 +29,11 @@ export function Holdings() {
     { id: 'description', label: l.explained ? 'Security name' : 'Name', value: (r) => r.p.description, render: (r) => <span className="clip" title={r.p.description ?? undefined}>{r.p.description ?? DASH}</span> },
     { id: 'type', label: l.explained ? 'Security type' : 'Type', value: (r) => ASSET_LABEL[r.p.assetType], render: (r) => <span title={r.p.assetTypeBasis}>{ASSET_LABEL[r.p.assetType]}</span> },
     { id: 'quantity', label: l.explained ? 'Shares' : 'Qty', num: true, value: (r) => decNum(r.p.quantity), render: (r) => f.qty(r.p.quantity) },
-    { id: 'lastPrice', label: l.explained ? 'Reported price' : 'Price', num: true, value: (r) => decNum(r.p.lastPrice), render: (r) => <MoneyCell v={r.p.lastPrice} why="Not in the file" /> },
+    { id: 'lastPrice', label: l.explained ? 'Price at last import' : 'Price', num: true, value: (r) => decNum(r.p.lastPrice), render: (r) => <MoneyCell v={r.p.lastPrice} why="Not in the file" /> },
     { id: 'priceChange', label: l.explained ? 'Reported price change' : 'Px chg', num: true, value: (r) => decNum(r.p.lastPriceChange), render: (r) => <MoneyCell v={r.p.lastPriceChange} signed delta why="Not in the file" /> },
-    { id: 'currentValue', label: l.explained ? 'Market value' : 'Value', num: true, value: (r) => decNum(r.p.currentValue), render: (r) => <MoneyCell v={r.p.currentValue} why="Not in the file" /> },
-    { id: 'costBasis', label: 'Cost basis', num: true, value: (r) => decNum(r.p.costBasis), render: (r) => <MoneyCell v={r.p.costBasis} why="Not in the file" /> },
-    { id: 'avgCost', label: l.explained ? 'Average cost/share' : 'Avg cost', num: true, value: (r) => decNum(r.avgCost.value), render: (r) => <MetricMoney m={r.avgCost} /> },
+    { id: 'currentValue', label: l.explained ? 'Value at last import' : 'Value', num: true, value: (r) => decNum(r.p.currentValue), render: (r) => <MoneyCell v={r.p.currentValue} why="Not in the file" /> },
+    { id: 'costBasis', label: l.label('costBasis'), num: true, value: (r) => decNum(r.p.costBasis), render: (r) => <MoneyCell v={r.p.costBasis} why="Not in the file" /> },
+    { id: 'avgCost', label: l.explained ? 'Average cost per share' : 'Avg cost', num: true, value: (r) => decNum(r.avgCost.value), render: (r) => <MetricMoney m={r.avgCost} /> },
     { id: 'todayGain', label: l.explained ? "Today's gain/loss" : 'Day $', num: true, value: (r) => decNum(r.p.todayGain), render: (r) => <MoneyCell v={r.p.todayGain} signed delta why="Not in the file" /> },
     { id: 'todayPct', label: l.explained ? "Today's %" : 'Day %', num: true, value: (r) => decNum(r.p.todayGainPct), render: (r) => <PctCell v={r.p.todayGainPct} signed delta why="Not in the file" /> },
     { id: 'totalGain', label: l.explained ? 'Total gain/loss' : 'Total $', num: true, value: (r) => decNum(r.gain.value), render: (r) => <MetricMoney m={r.gain} signed delta /> },
@@ -44,7 +44,7 @@ export function Holdings() {
     { id: 'account', label: 'Account', value: () => snapshot?.accountId ?? null, render: () => f.account(snapshot!.accountId) },
     { id: 'snapshot', label: 'Snapshot date', value: () => snapshot?.asOf ?? null, render: () => f.date(snapshot!.asOf) },
     ...rawKeys.map((k): Col<HoldingView> => ({ id: `raw:${k}`, label: k, value: (r) => r.p.raw[k] ?? null, render: (r) => f.raw(k, r.p.raw[k] ?? '') || DASH })),
-  ], [f, l.explained, color, rawKeys, snapshot]);
+  ], [f, l, color, rawKeys, snapshot]);
 
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -65,7 +65,7 @@ export function Holdings() {
         <h1>Holdings</h1>
         <Seg label="View" value={prefs.holdingsView} onChange={(v) => setPref('holdingsView', v)} options={[{ value: 'table', label: 'Table' }, { value: 'cards', label: 'Cards' }]} />
       </div>
-      <p className="muted small">Weights are a share of {folio.weightBase.label}. Reported % of account stays as imported.</p>
+      <p className="muted small">As of last import, {f.date(snapshot!.asOf)}. Weights are a share of {folio.weightBase.label}. Reported % of account stays as imported.</p>
       {l.explained && <p className="muted"><sup className="calc">c</sup> marks a figure FolioFish calculated; everything else is as reported in the file. Options, bonds and unknown instruments show only reported values.</p>}
       <div className="filters">
         <input type="search" placeholder="Search symbol or name" aria-label="Search holdings" value={q} onChange={(e) => setQ(e.target.value)} />

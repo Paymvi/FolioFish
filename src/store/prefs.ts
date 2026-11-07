@@ -8,6 +8,7 @@ export interface Prefs {
   activityCols: string[] | null;
   holdingsView: 'table' | 'cards';
   allocationIncludesCash: boolean;
+  gainDisplay: 'dollar' | 'percent';
   includePendingActivity: boolean; // valuation basis only; never stored with financial records
   period: string; // 'all', 'ytd', '12m', a year, or 'custom'
   periodStart: string;
@@ -16,7 +17,7 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   theme: 'system', mode: 'explained', hideDollars: false, hiddenSections: [], hiddenCharts: [],
-  holdingCols: null, activityCols: null, holdingsView: 'table', allocationIncludesCash: true, includePendingActivity: true,
+  holdingCols: null, activityCols: null, holdingsView: 'table', allocationIncludesCash: true, gainDisplay: 'dollar', includePendingActivity: true,
   period: 'all', periodStart: '', periodEnd: '',
 };
 
@@ -46,6 +47,7 @@ export function sanitizePrefs(x: Record<string, unknown>): Prefs {
     holdingsView: (v) => v === 'table' || v === 'cards',
     hideDollars: (v) => typeof v === 'boolean',
     allocationIncludesCash: (v) => typeof v === 'boolean',
+    gainDisplay: (v) => v === 'dollar' || v === 'percent',
     includePendingActivity: (v) => typeof v === 'boolean',
     hiddenSections: strings,
     hiddenCharts: strings,

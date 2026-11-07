@@ -3,6 +3,7 @@ import type { AssetType, PositionKind, TxnCategory } from './types';
 const CORE_SYMBOLS = new Set(['SPAXX', 'FDRXX', 'FZFXX', 'SPRXX', 'FCASH', 'FZDXX', 'FDLXX', 'CORE']);
 
 export const cleanSymbol = (s: string) => s.trim().replace(/\*+$/, '').trim();
+export const isCoreSymbol = (s: string) => CORE_SYMBOLS.has(cleanSymbol(s).toUpperCase());
 
 export const SUMMARY_LABEL = /^(PENDING\b.*\b|(GRAND |ACCOUNT )?)TOTALS?\b/i;
 

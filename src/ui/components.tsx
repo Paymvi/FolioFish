@@ -67,6 +67,9 @@ export function Delta({ value, children }: { value: Dec; children: ReactNode }) 
   return <span className={`delta ${n > 0 ? 'up' : n < 0 ? 'down' : ''}`}><Icon size={12} aria-hidden />{children}</span>;
 }
 
+/** The spelled-out form of a missing figure, for cards and summaries where a dash could be overlooked. */
+export const Unavailable = ({ why }: { why?: string }) => <span className="muted" title={why}>Unavailable</span>;
+
 function Missing({ why }: { why?: string }) {
   return <span className="muted" title={why} aria-label={`Unavailable${why ? `: ${why}` : ''}`}>{DASH}</span>;
 }
@@ -101,12 +104,12 @@ export const MetricPct = ({ m, signed, delta }: { m: Metric; signed?: boolean; d
 export function Stat({ k, m, pct, signed, delta, label }: { k: string; m: Metric; pct?: boolean; signed?: boolean; delta?: boolean; label?: string }) {
   const l = useLabel();
   const f = useFmt();
-  const n = m.value === null ? DASH : pct ? f.pct(m.value, signed) : f.money(m.value, signed);
+  const n = pct ? f.pct(m.value, signed) : f.money(m.value, signed);
   return (
     <div className="stat">
       <div className="stat-label">{label ?? l.label(k)}</div>
       <div className="stat-value">
-        {m.value === null ? <span className="muted">{DASH}</span> : delta ? <Delta value={m.value}>{n}</Delta> : n}
+        {m.value === null ? <span className="muted">Unavailable</span> : delta ? <Delta value={m.value}>{n}</Delta> : n}
       </div>
       {l.help(k) && <p className="stat-help">{l.help(k)}</p>}
       {m.value === null ? <p className="stat-note">{m.limitation}</p> : (l.explained || m.limitation) && <p className="stat-note">{[m.limitation, l.explained ? m.coverage : ''].filter(Boolean).join('. ')}</p>}

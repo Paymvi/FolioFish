@@ -9,7 +9,7 @@ Vite, React 19 and TypeScript, with no backend. Runtime dependencies: `papaparse
 | Parsing | `src/import/parse.ts`, `fields.ts` | CSV to rows, header and file type detection, source date, column aliases |
 | Normalization | `src/import/normalize.ts` | Rows to typed positions and transactions; account extraction and masking; non-data rows |
 | Planning and dedup | `src/import/plan.ts` | Pure `planBatch` and `removeImport`: all import rules, returning the next state without saving |
-| Domain | `src/domain/` | `decimal.ts`, `classify.ts`, `calc.ts`: structured `Metric` results with value, source, coverage, limitation |
+| Domain | `src/domain/` | `decimal.ts`, `classify.ts`, `calc.ts`: structured `Metric` results with value, source, coverage, limitation. `investments.ts`: one record per symbol, pie denominators, recorded observations, per-holding activity, sold investments |
 | Persistence | `src/store/db.ts`, `backup.ts`, `prefs.ts` | Versioned IndexedDB with migrations, validated backups, sanitized preferences |
 | UI | `src/ui/`, `src/pages/`, `src/App.tsx` | Hash routing, shared table and chart components, one page per area |
 
@@ -21,6 +21,9 @@ Key decisions:
 - **Transaction identity** is a fingerprint plus an occurrence number, so legitimate identical rows stay distinct. Stored count versus file count decides duplicate, new or ambiguous.
 - **Snapshots are never merged.** Views use exactly one. A partial snapshot only becomes current if nothing complete exists, and it is then labeled.
 - **One valuation path.** `valuation()` in `calc.ts` is the only code that combines pending activity with the account total, and `portfolio(snapshot, includePending)` feeds every display. It derives from stored rows at read time, so the toggle needs no schema change, migration or new backup version.
+- **An investment combines a symbol's rows.** Missing stays missing: if any row lacks a figure, the combined figure is unavailable rather than a partial sum. A price is shown only if every row agrees, and is never value ÷ a rounded quantity.
+- **Two allocation denominators on purpose.** Donuts use included positive holding values, since a pie cannot show a negative part. Card weights use the account value on the selected pending basis. Fidelity's percentage stays as imported.
+- **Chart gaps are real.** A complete snapshot without a holding is a gap in its line; a partial snapshot without it adds nothing.
 - **Demo data lives in memory only**, built by running fictional fixtures through the real importer.
 - **Price updates later:** a future price source would produce a `Snapshot`-like record through the same model. Nothing for that is implemented now.
 
@@ -32,15 +35,15 @@ All pages (Overview, Holdings with table and cards, holding detail, Activity, In
 
 ## Verification
 
-Results from the final run on 2026-11-05. All data was fictional.
+Results from the final run on 2026-11-06. All data was fictional.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Clean |
-| `npm test` | 163 tests pass |
-| `npm run build` | Succeeds. One size warning for the 800 KB JS bundle, harmless for a local app |
-| `npm run test:e2e` | 110 checks pass in installed Chrome against the production build |
-| `npm audit` (runtime dependencies) | 0 vulnerabilities |
+| `npm test` | 204 tests pass |
+| `npm run build` | Succeeds. One size warning for the 890 KB JS bundle, harmless for a local app |
+| `npm run test:e2e` | 140 checks pass in installed Chrome against the production build |
+| `npm audit` (runtime dependencies) | 0 vulnerabilities on 2026-11-05; not rerun, no dependencies changed |
 
 The browser run covers: empty state, import preview, valid import, repeated import, overlapping activity, malformed file, reload persistence, theme, explanation and visibility preferences, sorting, columns, cards, holding details, charts, backup, rejected backup, reset, restore and re-import after restore, removal impact, privacy toggle, account masking, 375px layouts, demo separation, keyboard skip link, and the pending activity toggle (both themes, both explanation modes, 375px, keyboard, reload, unreadable rows, unchanged stored records).
 
@@ -63,7 +66,11 @@ Problems the verification found, now fixed and covered by tests:
 - **Activity coverage** defaults to the first and last dated rows, so a quiet end of a period can look uncovered. Adjust it during review.
 - **Same-day snapshots with different holdings** are ordered by import time, since the file's time text is not parsed.
 - **Two open tabs** do not sync. Reload a tab after importing in another, and avoid importing from a stale tab.
-- **Hide dollars** leaves percentages, share counts and chart shapes visible, so relative sizes can still be seen.
+- **Hide dollars** leaves percentages, share counts, bar lengths and chart shapes visible, so relative sizes can still be seen. Cost-versus-value bars therefore still show the ratio, which the visible gain % states anyway.
+- **Fidelity's Type column** is read as Cash/Margin from Fidelity's balance-help wording. No Fidelity document describes the CSV column itself.
+- **Sold investments** cannot tell a sale from a transfer without a sale record, so those rows say "No sale record". A holding sold and rebought after the latest snapshot is not listed.
+- **Holdings past the eighth** share a neutral color and fold into one "Other" donut slice when there are two or more; the data tables list each one.
+- **Overview chart visibility** shares `hiddenCharts` with Analysis, under separate ids.
 - **Dollar formatting assumes USD.** Rows without a currency column are treated as USD; non-USD rows are excluded from totals, and a value with an unfamiliar currency symbol is flagged unreadable.
 - **Column and popover menus** stay open until toggled.
 - **Chart visuals** are read by pointer; keyboard and screen reader users get the same data through each chart's data table.

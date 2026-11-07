@@ -133,7 +133,7 @@ try {
 
   // Holdings table, sorting, details
   await go('#/holdings');
-  await page.locator('th button', { hasText: 'Cost basis' }).first().click();
+  await page.locator('th button', { hasText: 'Cost of current shares' }).first().click();
   const firstSym = await page.locator('tbody tr').first().locator('td').first().innerText();
   const lastCost = await page.locator('tbody tr').last().locator('td', { hasText: '—' }).count();
   check('sorting by a number works and missing sorts last', firstSym.includes('KOIFX') && lastCost > 0, firstSym);
@@ -148,7 +148,7 @@ try {
   await page.getByRole('link', { name: 'KOIFX' }).first().click();
   await page.waitForSelector('h1:has-text("KOIFX")');
   t = await text();
-  check('detail shows stats, history and source data', t.includes('Average cost/share') && t.includes('Imported snapshot history') && t.includes('Source data') && t.includes('Reinvestment'));
+  check('detail shows stats, history and source data', t.includes('Average cost per share') && t.includes('Imported snapshot history') && t.includes('Source data') && t.includes('Reinvestment'));
   check('detail states there are no lots', t.includes('no individual tax lots'));
   await page.screenshot({ path: `${SHOTS}/08-detail.png`, fullPage: true });
   await go('#/holdings/-PIKE261218C450');
@@ -167,15 +167,91 @@ try {
   check('income uses recorded wording and totals once', t.includes('$318.65') && t.includes('recorded'));
   await page.screenshot({ path: `${SHOTS}/10-income.png`, fullPage: true });
 
+  // Investment cards and overview charts
+  await go('#/overview');
+  await page.waitForTimeout(500);
+  check('one card per investment, plus core cash', (await page.locator('.invest-card').count()) === 9, String(await page.locator('.invest-card').count()));
+  const koi = page.locator('.invest-card', { hasText: 'KOIFX' }).first();
+  t = await koi.innerText();
+  check('card separates whole holding from per share', t.includes('Whole holding') && t.includes('Per share') && t.includes('Cost of current shares') && t.includes('Value at last import') && t.includes('Average cost per share') && t.includes('Price at last import'), t);
+  check('card states the weight denominator and import date', t.includes('of total account value, after pending activity') && t.includes('As of last import') && t.includes('Oct 30, 2026'), t);
+  check('card uses reported figures', t.includes('$20,000.00') && t.includes('$25,353.20') && t.includes('$165.98') && t.includes('$210.40'), t);
+  await koi.locator('summary', { hasText: 'More details' }).click();
+  t = await koi.innerText();
+  check('card expands to recorded transactions and covers the history range', t.includes('Recorded cash purchases') && t.includes('Reinvestment') && t.includes('imported history only'), t);
+  check('card flags history that does not explain the shares', t.includes('Earlier history is probably not imported'), t);
+  await page.screenshot({ path: `${SHOTS}/11-overview-card-expanded.png`, fullPage: true });
+  await koi.locator('summary', { hasText: 'More details' }).click();
+  t = await page.locator('.invest-card', { hasText: 'REEF' }).first().innerText();
+  check('missing basis says Unavailable', t.includes('Unavailable'), t);
+  check('core cash is its own card without a comparison', !(await page.locator('.invest-card', { hasText: 'SPAXX' }).first().innerText()).includes('Whole holding'));
+  t = await text();
+  check('overview lists every chart section', ['Allocation by market value', 'Allocation by cost of current shares', 'Allocation measures side by side', 'Cost of current shares versus value at last import', 'Unrealized gain/loss by investment', 'Recorded value at each import', 'Recorded price at each import', 'Recorded activity over time', 'Recorded activity by investment'].every((x) => t.includes(x)));
+  check('pending stays outside the pie and is explained', t.includes('Denominator: included positive holding values, cash included') && t.includes('of pending activity is in that value but is not a holding'), t.slice(0, 200));
+  check('value chart is not called a return', t.includes('not an investment return') && t.includes('Shares changed'));
+  const valueBefore = await page.locator('.value-card').innerText();
+  const donutBefore = await page.locator('.donut-center strong').first().innerText();
+  await page.getByRole('checkbox', { name: 'Include cash', exact: true }).uncheck();
+  check('Include cash changes the chart denominator', (await page.locator('.donut-center strong').first().innerText()) !== donutBefore);
+  check('Include cash leaves the account value alone', (await page.locator('.value-card').innerText()) === valueBefore);
+  t = await text();
+  check('cash exclusion is labeled', t.includes('cash left out') && t.includes('of cash is left out by the toggle'));
+  await page.getByRole('button', { name: 'Percent', exact: true }).click();
+  await page.waitForTimeout(150);
+  await page.reload();
+  await page.waitForSelector('.invest-card');
+  await page.waitForTimeout(400);
+  check('allocation and gain display persist', !(await page.getByRole('checkbox', { name: 'Include cash', exact: true }).isChecked()) && (await page.getByRole('button', { name: 'Percent', exact: true }).getAttribute('aria-pressed')) === 'true');
+  await page.getByRole('checkbox', { name: 'Include cash', exact: true }).check();
+  await page.getByRole('button', { name: 'Dollars', exact: true }).click();
+  await page.getByRole('button', { name: 'Hide chart: Recorded activity by investment' }).click();
+  check('overview charts can be hidden', !(await text()).includes('Recorded activity by investment'));
+  await page.locator('summary', { hasText: 'Customize' }).click();
+  await page.getByRole('button', { name: 'Reset to defaults' }).click();
+  await page.locator('summary', { hasText: 'Customize' }).click();
+  check('overview charts can be restored', (await text()).includes('Recorded activity by investment'));
+  await page.locator('.invest-card a', { hasText: 'Open KOIFX details' }).click();
+  await page.waitForSelector('h1:has-text("KOIFX")');
+  await page.waitForTimeout(400);
+  t = await text();
+  check('trade chart keeps both reference lines in view', t.includes('Average cost') && t.includes('Price at last import'));
+  check('detail compares both ways and explains its sources', t.includes('Whole holding') && t.includes('Per share') && t.includes('How these figures are built') && t.includes('Prices of recorded trades') && t.includes('Income and reinvestments'), t.slice(0, 300));
+  await page.screenshot({ path: `${SHOTS}/12-detail-visual.png`, fullPage: true });
+
+  // Every overview view in both themes and both modes
+  await go('#/overview');
+  for (const [theme, mode] of [['dark', 'Explained'], ['dark', 'Compact'], ['light', 'Compact'], ['light', 'Explained']]) {
+    for (let i = 0; i < 3 && (await page.evaluate(() => document.documentElement.dataset.theme)) !== theme; i++) await page.getByRole('button', { name: /^Theme:/ }).click();
+    await page.getByRole('button', { name: mode, exact: true }).click();
+    await page.waitForTimeout(300);
+    t = await text();
+    check(`${theme}/${mode} keeps the distinctions`, t.includes('Whole holding') && t.includes('Per share') && t.includes('Cost of current shares') && t.includes('Value at last import'));
+    await page.screenshot({ path: `${SHOTS}/13-overview-${theme}-${mode}.png`, fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Explained', exact: true }).click();
+
   // Privacy
   await page.getByRole('button', { name: 'Hide dollars' }).click();
   const dollars = /(?<!DEC 18 2026 )\$[\d,]+(\.\d+)?/;
+  await go('#/overview');
+  await page.locator('.invest-card summary').first().click();
+  await page.locator('.chart-table summary').first().click();
   for (const h of ['#/overview', '#/holdings', '#/holdings/KOIFX', '#/activity', '#/income', '#/analysis', '#/data']) {
     await go(h);
     await page.waitForTimeout(300);
     const html = await page.evaluate(() => document.getElementById('root').innerHTML);
     const m = html.replace(/\$450/g, '').match(dollars);
     check(`no dollars in ${h} (including attributes)`, !m, m?.[0]);
+  }
+  await go('#/overview');
+  await page.waitForTimeout(400);
+  for (const [name, sel] of [['donut', '.recharts-pie-sector'], ['bar', '.recharts-bar-rectangle'], ['line', '.recharts-dot']]) {
+    const mark = page.locator(sel).first();
+    await mark.scrollIntoViewIfNeeded();
+    await mark.hover({ force: true });
+    await page.waitForTimeout(200);
+    const tipHtml = await page.evaluate(() => [...document.querySelectorAll('.tip')].map((x) => x.outerHTML).join(''));
+    check(`overview ${name} tooltip hides dollars`, !/\$\d/.test(tipHtml), tipHtml);
   }
   await go('#/analysis');
   await page.waitForTimeout(300);
@@ -195,12 +271,12 @@ try {
 
   // Narrow layout
   await page.setViewportSize({ width: 375, height: 760 });
-  for (const h of ['#/overview', '#/holdings', '#/activity', '#/income', '#/analysis', '#/import', '#/data']) {
+  for (const h of ['#/overview', '#/holdings', '#/holdings/KOIFX', '#/activity', '#/income', '#/analysis', '#/import', '#/data']) {
     await go(h);
     await page.waitForTimeout(250);
     const w = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
     check(`no page overflow at 375px: ${h}`, w[0] <= w[1], w.join('/'));
-    await page.screenshot({ path: `${SHOTS}/narrow-${h.replace(/\W/g, '')}.png` });
+    await page.screenshot({ path: `${SHOTS}/narrow-${h.replace(/\W/g, '')}.png`, fullPage: true });
   }
   await page.setViewportSize({ width: 1400, height: 900 });
 
@@ -249,6 +325,14 @@ try {
   // Demo separation
   await page.getByRole('button', { name: 'Explore fictional demo' }).click();
   await page.waitForSelector('text=Demo mode.');
+  await go('#/overview');
+  await page.waitForTimeout(300);
+  t = await page.locator('section', { hasText: 'Sold investments' }).last().innerText();
+  check('demo shows a sold holding with proceeds but no invented gain', t.includes('TROUT') && t.includes('Sale recorded') && t.includes('$1,225.00'), t);
+  await page.locator('a.sym', { hasText: 'TROUT' }).click();
+  await page.waitForSelector('h1:has-text("TROUT")');
+  t = await text();
+  check('sold detail names the evidence', t.includes('not in the latest complete positions import') && t.includes('A sale is recorded'), t.slice(0, 400));
   await go('#/import');
   check('demo blocks imports', (await text()).includes('Importing is off in demo mode'));
   await page.getByRole('button', { name: 'Exit demo' }).first().click();
@@ -293,6 +377,8 @@ try {
   await p2.getByRole('button', { name: /^Import \d+ file/ }).click();
   await p2.waitForSelector('text=/^Imported \\d+ file/');
   await nav2('#/overview');
+  t = await body2();
+  check('positions-only: history charts explain what to import', t.includes('Import a positions CSV from another date') && t.includes('Import an activity CSV') && t.includes('Import activity history or an earlier positions file'), t.slice(0, 300));
   const toggle = p2.getByRole('checkbox', { name: 'Include pending activity' });
   const recordsBefore = await records();
   check('toggle defaults to on', await toggle.isChecked());

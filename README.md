@@ -42,12 +42,15 @@ Import a fresh positions file whenever you want a new data point. Each one becom
 
 | Feature | Positions | Activity |
 |---|:--:|:--:|
-| Account value, cash, cost basis, unrealized gain/loss | ✓ | |
+| Account value, cash, cost of current shares, unrealized gain/loss | ✓ | |
+| Investment cards: whole-holding and per-share comparisons | ✓ | |
+| Allocation by market value and by cost, cost versus value, gain/loss charts | ✓ | |
 | Today's gain/loss (as reported in the file) | ✓ | |
 | Holdings, allocation, weights, gainers and losers | ✓ | |
-| Portfolio and holding history | ✓ (2+ snapshots) | |
+| Portfolio and holding history, recorded value and price per investment | ✓ (2+ snapshots) | |
 | Dividends, interest, deposits, withdrawals, fees | | ✓ |
-| Purchases, sales and income per holding | | ✓ |
+| Purchases, sales, reinvestments and income per holding, with charts | | ✓ |
+| Sold investments | ✓ (2+ snapshots, or with activity) | ✓ |
 | Balance change split into your cash flows and everything else | ✓ (2 snapshots) | ✓ (covering the gap) |
 
 ### What refreshes, and when
@@ -94,7 +97,10 @@ Every figure is either **reported** (from the file) or **calculated** (marked wi
 | Total account value | Include pending activity ON (the default): securities + cash/core + the snapshot's signed pending adjustment |
 | Value before pending activity | Include pending activity OFF: securities + cash/core only. The adjustment stays visible beside it |
 | Cash/core | Rows marked `**`, described "HELD IN…", or known core symbols such as SPAXX. Counted once, as part of the total |
-| Cost basis | Sum of reported cost, excluding cash. Coverage is shown when some holdings have none |
+| Cost of current shares | Fidelity's reported cost basis for the shares still held, excluding cash. Not lifetime spending, contributions or deposits. Coverage is shown when some holdings have none |
+| Fidelity "Type" column | Cash or Margin describes how a position is held in the account, so it never makes a security count as cash. Core cash is recognized by `**`, "HELD IN…" or a known core symbol |
+| Market-value allocation (donut) | Value ÷ included positive holding values. Pending activity, and zero, negative or missing rows, stay outside and are listed. Include cash changes these charts only |
+| Cost-basis allocation (donut) | Cost ÷ positive cost of current shares. Cash has no basis; missing and zero bases are listed, not drawn |
 | Unrealized gain/loss | Reported per holding; if absent, value minus cost for stocks and funds only |
 | Overall unrealized % | Sum of gains ÷ sum of cost, over holdings with both and cost above zero. Never an average of percentages |
 | Today's gain/loss | Sum of reported values for the file's date. % = gain ÷ (value − gain). Funds price once a day, and this is whatever the file says |
@@ -105,6 +111,8 @@ Every figure is either **reported** (from the file) or **calculated** (marked wi
 | Deposits, withdrawals | External cash only. Purchases and sales are excluded |
 | Fees | Fee rows plus Commission and Fees columns on other rows |
 | Sale proceeds | Cash received. Not profit |
+| Realized gain/loss | Shown only when a file supplies it. Never estimated from today's average cost |
+| Sold investments | Not in the latest complete snapshot, with a recorded trade or an earlier snapshot as evidence. "No sale record" means nothing imported says how it left. Partial files, and purchases dated after the snapshot, prove nothing |
 
 ### Pending activity and the two valuation modes
 

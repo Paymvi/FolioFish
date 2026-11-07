@@ -65,7 +65,8 @@ const LABELS: Record<string, [string, string, string?]> = {
   securities: ['Invested in securities', 'Securities', 'Value of everything except cash and core positions.'],
   cash: ['Cash and core position', 'Cash/core', 'Money-market or core cash rows such as SPAXX. Counted once, as part of the total.'],
   pending: ['Pending activity', 'Pending'],
-  costBasis: ['What you paid (cost basis)', 'Cost basis', 'Total cost reported by Fidelity, excluding cash.'],
+  // Same wording in both modes: a bare "cost basis" reads as lifetime spending, which it is not.
+  costBasis: ['Cost of current shares', 'Cost of current shares', 'Fidelity’s cost basis for the shares you still own, excluding cash. Not lifetime spending, contributions or deposits; reinvestments and basis adjustments can be part of it.'],
   unrealized: ['Unrealized gain/loss', 'Unreal. G/L', 'Paper gain or loss on what you still own. Nothing here has been sold.'],
   unrealizedPct: ['Unrealized gain/loss %', 'Unreal. %', 'Total gain divided by total cost, not an average of the holdings’ percentages.'],
   today: ["Today's gain/loss", 'Day G/L', 'As reported in the file for its date. This is not a live figure.'],
@@ -75,14 +76,14 @@ const LABELS: Record<string, [string, string, string?]> = {
   interest: ['Interest received', 'Interest', 'Interest recorded in imported activity.'],
   capitalGains: ['Capital gain distributions', 'Cap gain dist', 'Paid by funds. Separate from gains on your own sales.'],
   reinvestedOther: ['Reinvested income, type not stated', 'Reinv. other', 'A reinvestment with no matching income record still implies income, so it is counted here once.'],
-  income: ['Total recorded income', 'Income', 'Dividends, interest, distributions and other reinvested income.'],
+  income: ['Recorded dividends and other income', 'Rec. income', 'Dividends, interest, distributions and other reinvested income, in the imported history.'],
   deposits: ['Money you added', 'Deposits', 'External deposits. Purchases and reinvestments are not included.'],
   withdrawals: ['Money you took out', 'Withdrawals', 'External withdrawals. Sales are not included.'],
   netExternal: ['Net money added', 'Net flow', 'Deposits minus withdrawals.'],
   fees: ['Recorded fees', 'Fees', 'Fee rows plus commission and fee columns on trades.'],
-  purchases: ['Purchases', 'Buys', 'Cash spent buying securities. Not a contribution.'],
-  saleProceeds: ['Sale proceeds', 'Sales', 'Cash received from sales. This is not profit.'],
-  reinvested: ['Reinvested', 'Reinvested', 'Income used to buy more shares. Not new money from you.'],
+  purchases: ['Recorded cash purchases', 'Rec. purchases', 'Cash spent buying securities in the imported history. Not a contribution.'],
+  saleProceeds: ['Recorded sale proceeds', 'Rec. sales', 'Cash received from sales in the imported history. This is not profit.'],
+  reinvested: ['Recorded reinvestments', 'Rec. reinvested', 'Income used to buy more shares, in the imported history. Not new money from you, and already counted once as income.'],
   realized: ['Realized gain/loss', 'Real. G/L', 'Needs the cost of the specific shares sold. Shown only if the file supplies it.'],
 };
 
